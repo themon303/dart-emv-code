@@ -16,6 +16,7 @@ class EmvqrModel {
     this.payloadFormatIndicator,
     this.pointOfInitiationMethod,
     this.merchantAccountInformation,
+    this.paymentNetworkInfo,
     this.merchantCategoryCode,
     this.transactionCurrency,
     this.transactionAmount,
@@ -36,6 +37,7 @@ class EmvqrModel {
   TLVModel? payloadFormatIndicator;
   TLVModel? pointOfInitiationMethod;
   Map<String, MerchantAccountInformationModel>? merchantAccountInformation;
+  List<TLVModel>? paymentNetworkInfo;
   TLVModel? merchantCategoryCode;
   TLVModel? transactionCurrency;
   TLVModel? transactionAmount;
@@ -56,6 +58,7 @@ class EmvqrModel {
     TLVModel? payloadFormatIndicator,
     TLVModel? pointOfInitiationMethod,
     Map<String, MerchantAccountInformationModel>? merchantAccountInformation,
+    List<TLVModel>? paymentNetworkInfo,
     TLVModel? merchantCategoryCode,
     TLVModel? transactionCurrency,
     TLVModel? transactionAmount,
@@ -80,6 +83,8 @@ class EmvqrModel {
             pointOfInitiationMethod ?? this.pointOfInitiationMethod,
         merchantAccountInformation:
             merchantAccountInformation ?? this.merchantAccountInformation,
+        paymentNetworkInfo:
+            paymentNetworkInfo ?? this.paymentNetworkInfo,
         merchantCategoryCode: merchantCategoryCode ?? this.merchantCategoryCode,
         transactionCurrency: transactionCurrency ?? this.transactionCurrency,
         transactionAmount: transactionAmount ?? this.transactionAmount,
@@ -111,6 +116,8 @@ class EmvqrModel {
         merchantAccountInformation: Map.from(json["MerchantAccountInformation"])
             .map((k, v) => MapEntry<String, MerchantAccountInformationModel>(
                 k, MerchantAccountInformationModel.fromJson(v))),
+        paymentNetworkInfo: List<TLVModel>.from(
+            json["paymentNetworkInfo"].map((x) => TLVModel.fromJson(x))),
         merchantCategoryCode: TLVModel.fromJson(json["merchantCategoryCode"]),
         transactionCurrency: TLVModel.fromJson(json["transactionCurrency"]),
         transactionAmount: TLVModel.fromJson(json["transactionAmount"]),
@@ -142,6 +149,9 @@ class EmvqrModel {
         "pointOfInitiationMethod": pointOfInitiationMethod?.toJson(),
         "merchantAccountInformation": Map.from(merchantAccountInformation ?? {})
             .map((k, v) => MapEntry<String, dynamic>(k, v.toJson())),
+        "paymentNetworkInfo": paymentNetworkInfo != null
+            ? List<dynamic>.from(paymentNetworkInfo!.map((x) => x.toJson()))
+            : [],
         "merchantCategoryCode": merchantCategoryCode?.toJson(),
         "transactionCurrency": transactionCurrency?.toJson(),
         "transactionAmount": transactionAmount?.toJson(),

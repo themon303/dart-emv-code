@@ -24,6 +24,7 @@ EMVDeCode parseEMVQR(String payload) {
   TLVModel? payloadFormatIndicator;
   TLVModel? pointOfInitiationMethod;
   Map<String, MerchantAccountInformationModel>? merchantAccountInformation = {};
+  List<TLVModel> paymentNetworkInfo = [];
   TLVModel? merchantCategoryCode;
   TLVModel? transactionCurrency;
   TLVModel? transactionAmount;
@@ -86,40 +87,30 @@ EMVDeCode parseEMVQR(String payload) {
         break;
       case ID.additionalDataFieldTemplate:
         final additionalValue = _parseAdditionalDataFieldTemplate(value);
-        additionalDataFieldTemplate =
-            _setAdditionalDataFieldTemplate(additionalValue);
+        additionalDataFieldTemplate = _setAdditionalDataFieldTemplate(additionalValue);
         break;
       case ID.crc:
         crc = setTLV(value, id);
         break;
       case ID.merchantInformationLanguageTemplate:
-        final merchantInfoLanguageTemplateValue =
-            _parseMerchantInformationLanguageTemplate(value);
+        final merchantInfoLanguageTemplateValue = _parseMerchantInformationLanguageTemplate(value);
         merchantInformationLanguageTemplate =
-            _setMerchantInformationLanguageTemplate(
-                merchantInfoLanguageTemplateValue);
+            _setMerchantInformationLanguageTemplate(merchantInfoLanguageTemplateValue);
 
         break;
 
       default:
         Map<String, dynamic> betweenRes;
-        betweenRes = between(id, ID.merchantAccountInformationRangeStart,
-            ID.merchantAccountInformationRangeEnd);
+        betweenRes = between(id, ID.merchantAccountInformationRangeStart, ID.merchantAccountInformationRangeEnd);
         if (betweenRes["within"]) {
-          MerchantAccountInformationValue merchantValue =
-              _parseMerchantAccountInformation(value);
-          MerchantAccountInformationModel mTLV =
-              _addMerchantAccountInformation(id, merchantValue);
+          MerchantAccountInformationValue merchantValue = _parseMerchantAccountInformation(value);
+          MerchantAccountInformationModel mTLV = _addMerchantAccountInformation(id, merchantValue);
           merchantAccountInformation[id] = mTLV;
           break;
         }
-        betweenRes =
-            between(id, ID.rfuForEMVCoRangeStart, ID.rfuForEMVCoRangeEnd);
+        betweenRes = between(id, ID.rfuForEMVCoRangeStart, ID.rfuForEMVCoRangeEnd);
         if (betweenRes["err"] != null) {
-          return EMVDeCode(
-              emvqr: null,
-              error: EmvError(
-                  type: EmvErrorType.notEmvType, message: betweenRes["err"]));
+          return EMVDeCode(emvqr: null, error: EmvError(type: EmvErrorType.notEmvType, message: betweenRes["err"]));
         }
         if (betweenRes["within"]) {
           TLVModel tlv = setTLV(value, id);
@@ -127,29 +118,26 @@ EMVDeCode parseEMVQR(String payload) {
           break;
         }
 
-        betweenRes = between(id, ID.unreservedTemplatesRangeStart,
-            ID.unreservedTemplatesRangeEnd);
+        betweenRes = between(id, ID.unreservedTemplatesRangeStart, ID.unreservedTemplatesRangeEnd);
         if (betweenRes["err"] != null) {
-          return EMVDeCode(
-              emvqr: null,
-              error: EmvError(
-                  type: EmvErrorType.notEmvType, message: betweenRes["err"]));
+          return EMVDeCode(emvqr: null, error: EmvError(type: EmvErrorType.notEmvType, message: betweenRes["err"]));
         }
         if (betweenRes["within"]) {
-          UnreservedTemplateValue unreservedTemplate =
-              _parseUnreservedTemplate(value);
-          UnreservedTemplateModel uTLV =
-              _addUnreservedTemplates(id, unreservedTemplate);
+          UnreservedTemplateValue unreservedTemplate = _parseUnreservedTemplate(value);
+          UnreservedTemplateModel uTLV = _addUnreservedTemplates(id, unreservedTemplate);
           unreservedTemplates[id] = uTLV;
           break;
         }
     }
   }
 
+  paymentNetworkInfo = parsePaymentNetworkInfo(merchantAccountInformation["38"]?.value?.paymentNetworkSpecific?.first.value ?? "");
+
   emvqr = EmvqrModel(
       payloadFormatIndicator: payloadFormatIndicator,
       pointOfInitiationMethod: pointOfInitiationMethod,
       merchantAccountInformation: merchantAccountInformation,
+      paymentNetworkInfo: paymentNetworkInfo,
       merchantCategoryCode: merchantCategoryCode,
       transactionCurrency: transactionCurrency,
       transactionAmount: transactionAmount,
@@ -166,6 +154,19 @@ EMVDeCode parseEMVQR(String payload) {
       rfuForEmvCo: rfuForEMVCo,
       unreservedTemplates: unreservedTemplates);
   return EMVDeCode(emvqr: emvqr, error: null);
+}
+
+List<TLVModel> parsePaymentNetworkInfo(String payLoad) {
+  ParserModel p = newParser(payLoad);
+  List<TLVModel> paymentNetworkInfo = [];
+  while (next(p)) {
+    String id = pid(p);
+    String value = pValue(p);
+    TLVModel tlv = setTLV(value, id);
+    paymentNetworkInfo.add(tlv);
+    continue;
+  }
+  return paymentNetworkInfo;
 }
 
 String getValueLength(String value) {
@@ -207,8 +208,7 @@ Map<String, dynamic> between(String id, String start, String end) {
   };
 }
 
-AdditionalDataFieldTemplateValue _parseAdditionalDataFieldTemplate(
-    String payLoad) {
+AdditionalDataFieldTemplateValue _parseAdditionalDataFieldTemplate(String payLoad) {
   ParserModel p = newParser(payLoad);
 
   // AdditionalDataFieldTemplate data
@@ -265,16 +265,13 @@ AdditionalDataFieldTemplateValue _parseAdditionalDataFieldTemplate(
         break;
       default:
         Map<String, dynamic> betweenRes;
-        betweenRes = between(id, AdditionalID.rfuForEMVCoRangeStart,
-            AdditionalID.rfuForEMVCoRangeEnd);
+        betweenRes = between(id, AdditionalID.rfuForEMVCoRangeStart, AdditionalID.rfuForEMVCoRangeEnd);
         if (betweenRes["within"]) {
           TLVModel tlv = setTLV(value, id);
           rfuForEMVCo.add(tlv);
           break;
         }
-        betweenRes = between(
-            id,
-            AdditionalID.paymentSystemSpecificTemplatesRangeStart,
+        betweenRes = between(id, AdditionalID.paymentSystemSpecificTemplatesRangeStart,
             AdditionalID.paymentSystemSpecificTemplatesRangeEnd);
         if (betweenRes["within"]) {
           TLVModel tlv = setTLV(value, id);
@@ -301,8 +298,7 @@ AdditionalDataFieldTemplateValue _parseAdditionalDataFieldTemplate(
   );
 }
 
-AdditionalDataFieldTemplateModel _setAdditionalDataFieldTemplate(
-    AdditionalDataFieldTemplateValue value) {
+AdditionalDataFieldTemplateModel _setAdditionalDataFieldTemplate(AdditionalDataFieldTemplateValue value) {
   String billNumber = tlvToString(value.billNumber);
   String mobileNumber = tlvToString(value.mobileNumber);
   String storeLabel = tlvToString(value.storeLabel);
@@ -311,8 +307,7 @@ AdditionalDataFieldTemplateModel _setAdditionalDataFieldTemplate(
   String customerLabel = tlvToString(value.customerLabel);
   String terminalLabel = tlvToString(value.terminalLabel);
   String purposeTransaction = tlvToString(value.purposeTransaction);
-  String additionalConsumerDataRequest =
-      tlvToString(value.additionalConsumerDataRequest);
+  String additionalConsumerDataRequest = tlvToString(value.additionalConsumerDataRequest);
   String merchantTaxId = tlvToString(value.merchantTaxId);
   String merchantChannel = tlvToString(value.merchantChannel);
 
@@ -339,13 +334,11 @@ AdditionalDataFieldTemplateModel _setAdditionalDataFieldTemplate(
       rfuForEMVCo +
       paymentSystemSpecific);
   AdditionalDataFieldTemplateModel additionalDataFieldTemplate =
-      AdditionalDataFieldTemplateModel(
-          tag: ID.additionalDataFieldTemplate, length: length, value: value);
+      AdditionalDataFieldTemplateModel(tag: ID.additionalDataFieldTemplate, length: length, value: value);
   return additionalDataFieldTemplate;
 }
 
-MerchantInformationLanguageTemplateValue
-    _parseMerchantInformationLanguageTemplate(String payLoad) {
+MerchantInformationLanguageTemplateValue _parseMerchantInformationLanguageTemplate(String payLoad) {
   ParserModel p = newParser(payLoad);
 
   // AdditionalDataFieldTemplate data
@@ -369,8 +362,8 @@ MerchantInformationLanguageTemplateValue
         break;
       default:
         Map<String, dynamic> betweenRes;
-        betweenRes = between(id, MerchantInformationID.rfuForEMVCoRangeStart,
-            MerchantInformationID.rfuForEMVCoRangeEnd);
+        betweenRes =
+            between(id, MerchantInformationID.rfuForEMVCoRangeStart, MerchantInformationID.rfuForEMVCoRangeEnd);
         if (betweenRes["within"]) {
           TLVModel tlv = setTLV(value, id);
           rfuForEMVCo.add(tlv);
@@ -378,19 +371,17 @@ MerchantInformationLanguageTemplateValue
         }
     }
   }
-  MerchantInformationLanguageTemplateValue value =
-      MerchantInformationLanguageTemplateValue(
-          languagePreference: languagePreference,
-          merchantName: merchantName,
-          merchantCity: merchantCity,
-          rfuForEMVCo: rfuForEMVCo);
+  MerchantInformationLanguageTemplateValue value = MerchantInformationLanguageTemplateValue(
+      languagePreference: languagePreference,
+      merchantName: merchantName,
+      merchantCity: merchantCity,
+      rfuForEMVCo: rfuForEMVCo);
 
   return value;
 }
 
-MerchantInformationLanguageTemplateModel
-    _setMerchantInformationLanguageTemplate(
-        MerchantInformationLanguageTemplateValue value) {
+MerchantInformationLanguageTemplateModel _setMerchantInformationLanguageTemplate(
+    MerchantInformationLanguageTemplateValue value) {
   String languagePreference = tlvToString(value.languagePreference);
   String merchantName = tlvToString(value.merchantName);
   String merchantCity = tlvToString(value.merchantCity);
@@ -398,18 +389,15 @@ MerchantInformationLanguageTemplateModel
   value.rfuForEMVCo?.forEach((element) {
     rfuForEMVCo += tlvToString(element);
   });
-  MerchantInformationLanguageTemplateModel merchantInfoLanguageTemplate =
-      MerchantInformationLanguageTemplateModel(
-          tag: ID.merchantInformationLanguageTemplate,
-          length: getValueLength(
-              languagePreference + merchantName + merchantCity + rfuForEMVCo),
-          value: value);
+  MerchantInformationLanguageTemplateModel merchantInfoLanguageTemplate = MerchantInformationLanguageTemplateModel(
+      tag: ID.merchantInformationLanguageTemplate,
+      length: getValueLength(languagePreference + merchantName + merchantCity + rfuForEMVCo),
+      value: value);
 
   return merchantInfoLanguageTemplate;
 }
 
-MerchantAccountInformationValue _parseMerchantAccountInformation(
-    String payLoad) {
+MerchantAccountInformationValue _parseMerchantAccountInformation(String payLoad) {
   ParserModel p = newParser(payLoad);
 
   // AdditionalDataFieldTemplate data
@@ -424,9 +412,7 @@ MerchantAccountInformationValue _parseMerchantAccountInformation(
         break;
       default:
         Map<String, dynamic> betweenRes;
-        betweenRes = between(
-            id,
-            MerchantAccountInformationID.paymentNetworkSpecificStart,
+        betweenRes = between(id, MerchantAccountInformationID.paymentNetworkSpecificStart,
             MerchantAccountInformationID.paymentNetworkSpecificEnd);
         if (betweenRes["within"]) {
           TLVModel tlv = setTLV(value, id);
@@ -442,8 +428,7 @@ MerchantAccountInformationValue _parseMerchantAccountInformation(
   );
 }
 
-MerchantAccountInformationModel _addMerchantAccountInformation(
-    String id, MerchantAccountInformationValue value) {
+MerchantAccountInformationModel _addMerchantAccountInformation(String id, MerchantAccountInformationValue value) {
   String _globally =
       "${value.globallyUniqueIdentifier?.tag}${value.globallyUniqueIdentifier?.length}${value.globallyUniqueIdentifier?.value}";
   String _payment = "";
@@ -451,8 +436,8 @@ MerchantAccountInformationModel _addMerchantAccountInformation(
     _payment += "${element.tag}${element.length}${element.value}";
   });
 
-  MerchantAccountInformationModel mTLV = MerchantAccountInformationModel(
-      tag: id, length: getValueLength(_globally + _payment), value: value);
+  MerchantAccountInformationModel mTLV =
+      MerchantAccountInformationModel(tag: id, length: getValueLength(_globally + _payment), value: value);
   return mTLV;
 }
 
@@ -471,8 +456,8 @@ UnreservedTemplateValue _parseUnreservedTemplate(String payLoad) {
         break;
       default:
         Map<String, dynamic> betweenRes;
-        betweenRes = between(id, UnreservedTemplateID.contextSpecificDataStart,
-            UnreservedTemplateID.contextSpecificDataEnd);
+        betweenRes =
+            between(id, UnreservedTemplateID.contextSpecificDataStart, UnreservedTemplateID.contextSpecificDataEnd);
         if (betweenRes["within"]) {
           TLVModel tlv = setTLV(value, id);
           contextSpecificData.add(tlv);
@@ -487,8 +472,7 @@ UnreservedTemplateValue _parseUnreservedTemplate(String payLoad) {
   );
 }
 
-UnreservedTemplateModel _addUnreservedTemplates(
-    String id, UnreservedTemplateValue value) {
+UnreservedTemplateModel _addUnreservedTemplates(String id, UnreservedTemplateValue value) {
   String _globally =
       "${value.globallyUniqueIdentifier?.tag}${value.globallyUniqueIdentifier?.length}${value.globallyUniqueIdentifier?.value}";
   String _contextSpec = "";
@@ -520,17 +504,14 @@ EmvEncode generatePayload(EmvqrModel emv) {
 
     keys.sort();
     for (var key in keys) {
-      final merchantAcInfo = emv.merchantAccountInformation?.entries
-          .firstWhere((element) => element.key == key);
+      final merchantAcInfo = emv.merchantAccountInformation?.entries.firstWhere((element) => element.key == key);
 
-      String _globallyUnique =
-          tlvToString(merchantAcInfo?.value.value?.globallyUniqueIdentifier);
+      String _globallyUnique = tlvToString(merchantAcInfo?.value.value?.globallyUniqueIdentifier);
       String _paymentNS = "";
       merchantAcInfo?.value.value?.paymentNetworkSpecific?.forEach((tlv) {
         _paymentNS += tlvToString(tlv);
       });
-      s +=
-          "${merchantAcInfo?.value.tag}${merchantAcInfo?.value.length}$_globallyUnique$_paymentNS";
+      s += "${merchantAcInfo?.value.tag}${merchantAcInfo?.value.length}$_globallyUnique$_paymentNS";
     }
     s += tlvToString(emv.merchantCategoryCode);
     s += tlvToString(emv.transactionCurrency);
@@ -547,8 +528,7 @@ EmvEncode generatePayload(EmvqrModel emv) {
     s += _additionalTemplateToString(emv.additionalDataFieldTemplate);
 
     // merchant Info Language Template
-    s += _merchantInfoLanguageTemplateToStrng(
-        emv.merchantInformationLanguageTemplate);
+    s += _merchantInfoLanguageTemplateToStrng(emv.merchantInformationLanguageTemplate);
 
     // rfu
     emv.rfuForEmvCo?.forEach((tlv) {
@@ -570,29 +550,19 @@ EmvEncode generatePayload(EmvqrModel emv) {
     final crcFormat = _formatCrc(s);
 
     if (crcFormat["err"] != null) {
-      return EmvEncode(
-          value: s,
-          error: EmvError(
-              message: "generate emvqr error",
-              type: EmvErrorType.generateQrErr));
+      return EmvEncode(value: s, error: EmvError(message: "generate emvqr error", type: EmvErrorType.generateQrErr));
     }
 
     s += crcFormat["value"];
     return EmvEncode(value: s, error: null);
   } catch (e) {
-    return EmvEncode(
-        value: null,
-        error: EmvError(
-            message: "generate qr error ", type: EmvErrorType.generateQrErr));
+    return EmvEncode(value: null, error: EmvError(message: "generate qr error ", type: EmvErrorType.generateQrErr));
   }
 }
 
 // additional templete to string
 String _additionalTemplateToString(AdditionalDataFieldTemplateModel? value) {
-  if (value != null &&
-      value.tag != null &&
-      value.length != null &&
-      value.value != null) {
+  if (value != null && value.tag != null && value.length != null && value.value != null) {
     String billNumber = tlvToString(value.value?.billNumber);
     String mobileNumber = tlvToString(value.value?.mobileNumber);
     String storeLabel = tlvToString(value.value?.storeLabel);
@@ -601,8 +571,7 @@ String _additionalTemplateToString(AdditionalDataFieldTemplateModel? value) {
     String customerLabel = tlvToString(value.value?.customerLabel);
     String terminalLabel = tlvToString(value.value?.terminalLabel);
     String purposeTransaction = tlvToString(value.value?.purposeTransaction);
-    String additionalConsumerDataRequest =
-        tlvToString(value.value?.additionalConsumerDataRequest);
+    String additionalConsumerDataRequest = tlvToString(value.value?.additionalConsumerDataRequest);
     String merchantTaxId = tlvToString(value.value?.merchantTaxId);
     String merchantChannel = tlvToString(value.value?.merchantChannel);
 
@@ -636,11 +605,8 @@ String _additionalTemplateToString(AdditionalDataFieldTemplateModel? value) {
 }
 
 // merchant info language to string
-String _merchantInfoLanguageTemplateToStrng(
-    MerchantInformationLanguageTemplateModel? merchantInfoLang) {
-  if (merchantInfoLang != null &&
-      merchantInfoLang.tag != null &&
-      merchantInfoLang.value != null) {
+String _merchantInfoLanguageTemplateToStrng(MerchantInformationLanguageTemplateModel? merchantInfoLang) {
+  if (merchantInfoLang != null && merchantInfoLang.tag != null && merchantInfoLang.value != null) {
     final mInfo = merchantInfoLang.value;
 
     String languagePreference = tlvToString(mInfo?.languagePreference);
@@ -651,8 +617,7 @@ String _merchantInfoLanguageTemplateToStrng(
     mInfo?.rfuForEMVCo?.forEach((tlv) {
       rfuForEMVCo += tlvToString(tlv);
     });
-    String mStr =
-        languagePreference + merchantName + merchantCity + rfuForEMVCo;
+    String mStr = languagePreference + merchantName + merchantCity + rfuForEMVCo;
     return "${merchantInfoLang.tag}${merchantInfoLang.length}$mStr";
   } else {
     return "";
